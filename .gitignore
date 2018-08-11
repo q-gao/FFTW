@@ -1,0 +1,7 @@
+build_*/
+.libs/
+*.o
+*.lo
+*.Plo
+*.a
+*.la

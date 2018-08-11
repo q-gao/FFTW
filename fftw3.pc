@@ -1,0 +1,11 @@
+prefix=/home/qgao/android-ndk-r17b//toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/user
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: FFTW
+Description: fast Fourier transform library
+Version: 3.3.8
+Libs: -L${libdir} -lfftw3 
+Libs.private: -lm
+Cflags: -I${includedir}
