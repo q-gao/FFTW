@@ -278,22 +278,7 @@ int main(int argc, char **argv)
 	FFT2D(data, N, N, 1, real, imag);
 	FFT2D_1DInput(data_real, data_imag, N, N, 1, real, imag);
 
-	pr = data_real;
-	pi = data_imag;
-	Float_T d, max_diff = (Float_T)0.0;
-	for (i = 0; i < N; ++i) {
-		for (j = 0; j < N; ++j) {
-			d = ABS(data[i][j].real - *pr);
-			if (max_diff < d)
-				max_diff = d;
-			d = ABS(data[i][j].imag - *pi);
-			if (max_diff < d)
-				max_diff = d;
-			pr++; pi++;
-			//pdata+=data[i*N1 + j][0]*data[i*N1 + j][0]+data[i*N1 + j][1]*data[i*N1 + j][1];
-		}
-	}
-	printf("Max Diff %f\n", max_diff);
+
 #endif
 	// int v = -10;
 	// int bs = 1;

@@ -25,7 +25,19 @@ endif(DEBUG_LEVEL_INFO_LOW)
 #----------------------------------------------
 project(2dfft)
 
-if( NOT MSVC )
+if( MSVC ) 
+	if( "${CMAKE_GENERATOR}" MATCHES "(Win64|IA64)")	
+		include_directories("D:/github/my/FFTW/win/x64")
+		link_directories("D:/github/my/FFTW/win/x64")
+	else()
+		include_directories("D:/github/my/FFTW/win/x86")
+		link_directories("D:/github/my/FFTW/win/x86")		
+	endif()
+	add_executable(2dfft
+	               simple_example.c
+	)
+	target_link_libraries(2dfft libfftw3-3)
+else(MSVC)  # NOT MSVC
 	include_directories("D:/code/fftw-3.3.8/api")
 	link_directories("D:/code/fftw-3.3.8/build_android")
 
@@ -33,7 +45,7 @@ if( NOT MSVC )
 	               simple_example.c
 	)
 	target_link_libraries(2dfft fftw3)
-endif()
+endif(MSVC)
 
 add_executable(ourfft 
 	ourfft.cpp
