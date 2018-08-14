@@ -1,5 +1,7 @@
 build_*/
 .libs/
+x64/
+x86/
 *.o
 *.lo
 *.Plo

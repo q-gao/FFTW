@@ -13,16 +13,17 @@ uint64_t get_time_ns() {
      
 int main(int argc, char **argv){
   const ptrdiff_t N0 = 16, N1 = 16;
-  fftw_plan plan;
+  fftw_plan plan, plan_realin;
   fftw_complex *data;
 
   printf("fftw_plan = %lu bytes, fftw_complex = %lu bytes\n", sizeof(fftw_plan), sizeof(fftw_complex));
   uint64_t start_ns = get_time_ns();
   data = (fftw_complex *) fftw_malloc(sizeof(fftw_complex) * N0 * N1);
+  double *real_data = (double*)fftw_malloc(sizeof(double) * N0 * N1);
 
   /* create plan for forward DFT */
-  plan = fftw_plan_dft_2d(N0, N1, data, data, FFTW_FORWARD, FFTW_ESTIMATE);
-  
+  plan        = fftw_plan_dft_2d    (N0, N1, data, data,     FFTW_FORWARD, FFTW_ESTIMATE);
+  plan_realin = fftw_plan_dft_r2c_2d(N0, N1, real_data, data,FFTW_ESTIMATE);
   printf("FFTW init time %llu ns\n", (unsigned long long)((get_time_ns() - start_ns)));
   /* initialize data to some function my_function(x,y) */
   int i, j;
@@ -31,6 +32,7 @@ int main(int argc, char **argv){
     for (j = 0; j < N1; ++j){
       data[i*N1 + j][0]=i; 
       data[i*N1 + j][1]=0;
+      real_data[i*N1 + j] = i;
       //pdata+=data[i*N1 + j][0]*data[i*N1 + j][0]+data[i*N1 + j][1]*data[i*N1 + j][1];
     }
   }
@@ -42,8 +44,19 @@ int main(int argc, char **argv){
     /* compute transforms, in-place, as many times as desired */
     fftw_execute(plan);
 
-  printf("Total 2D FFT Time %llu us\n", (unsigned long long)((get_time_ns() - start_ns)/1000));
-  printf("Avg 2D FFT Time %llu ns\n", (unsigned long long)((get_time_ns() - start_ns)/num_run));
+  printf("Complext 2D FFT:\n");
+  printf("  Total 2D FFT Time %llu us\n", (unsigned long long)((get_time_ns() - start_ns)/1000));
+  printf("  Avg 2D FFT Time %llu ns\n", (unsigned long long)((get_time_ns() - start_ns)/num_run));
+
+  start_ns = get_time_ns();
+  for(int i = 0; i < num_run; i++)
+    /* compute transforms, in-place, as many times as desired */
+    fftw_execute(plan_realin);
+
+  printf("Real 2D FFT:\n");
+  printf("  Total 2D FFT Time %llu us\n", (unsigned long long)((get_time_ns() - start_ns)/1000));
+  printf("  Avg 2D FFT Time %llu ns\n", (unsigned long long)((get_time_ns() - start_ns)/num_run));
+
   // double normalization=sqrt((double)N0*N1);
   // double ptransform = 0;
   // for (i = 0; i < N0; ++i){
