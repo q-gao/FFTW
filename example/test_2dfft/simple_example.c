@@ -225,11 +225,43 @@ ARGUMENTS:
 #define N0  16
 #define N1  16
 #define VERIFY_RESULT
+
+void Expand2DR2CDftResults(fftw_complex * pIn, fftw_complex * pOut, int num_row, int num_col)
+/*
+ARGUMENTS:
+  - pIn: compressed as output of fftw_plan_dft_r2c_2d
+*/
+{
+	int r, c;
+	int num_col_in = (num_col >> 1) + 1;
+	fftw_complex * prow_out, *pr_from, *pr_from_matched;
+
+	prow_out = pOut;
+	for (r = 0; r < num_row; r++) {
+		pr_from = pIn + r * num_col_in;
+		if (r == 0)
+			pr_from_matched = pIn;
+		else
+			pr_from_matched = pIn + (num_row - r) * num_col_in;
+		for (c = 0; c < num_col; c++) {
+			if (c < num_col_in) {
+				prow_out[c][0] = pr_from[c][0];
+				prow_out[c][1] = pr_from[c][1];
+			} else {
+				prow_out[c][0] = pr_from_matched[num_col - c][0];
+				prow_out[c][1] = -pr_from_matched[num_col - c][1];
+			}
+		}
+		prow_out += num_col;
+	}
+}
+
 int main(int argc, char **argv){
   //const ptrdiff_t N0 = 16, N1 = 16;  
-  fftw_plan plan, plan_realin;
+  fftw_plan plan, plan_r2c, plan_c2r;
   fftw_complex *fftwCplxData=(fftw_complex *) fftw_malloc(sizeof(fftw_complex) * N0 * N1);
   double       *fftwRealData = (double*)fftw_malloc(sizeof(double) * N0 * N1);
+  fftw_complex *fftwFullCplxData = (fftw_complex *)fftw_malloc(sizeof(fftw_complex) * N0 * N1);
 #ifdef VERIFY_RESULT
   Float_T real[MAX(N0, N1)], imag[MAX(N0, N1)];
   Float_T data_real[N0 * N1], data_imag[N0 * N1];
@@ -242,7 +274,8 @@ int main(int argc, char **argv){
 #ifndef VERIFY_RESULT
   plan        = fftw_plan_dft_2d    (N0, N1, fftwCplxData, fftwCplxData,     FFTW_FORWARD, FFTW_ESTIMATE);
 #endif
-  plan_realin = fftw_plan_dft_r2c_2d(N0, N1, fftwRealData, fftwCplxData,FFTW_ESTIMATE);
+  plan_r2c = fftw_plan_dft_r2c_2d(N0, N1, fftwRealData, fftwCplxData,FFTW_ESTIMATE);
+  plan_c2r = fftw_plan_dft_c2r_2d(N0, N1, fftwCplxData, fftwRealData, FFTW_ESTIMATE);
   printf("FFTW init time %llu ns\n", (unsigned long long)((get_time_ns() - start_ns)));
 
   /* initialize fftwCplxData to some function my_function(x,y) */
@@ -252,14 +285,16 @@ int main(int argc, char **argv){
   pr = data_real;
   pi = data_imag;
 #endif
+  int v;
   for (i = 0; i < N0; ++i){
     for (j = 0; j < N1; ++j){
-      fftwCplxData[i*N1 + j][0]=i; 
+	  v = rand();
+      fftwCplxData[i*N1 + j][0]= (Float_T)v; 
       fftwCplxData[i*N1 + j][1]=0;
-      fftwRealData[i*N1 + j] = i;
+      fftwRealData[i*N1 + j] = (Float_T)v;
       //pdata+=fftwCplxData[i*N1 + j][0]*fftwCplxData[i*N1 + j][0]+fftwCplxData[i*N1 + j][1]*fftwCplxData[i*N1 + j][1];
 #ifdef VERIFY_RESULT
-	  *pr++ = i;
+	  *pr++ = (Float_T)v;
 	  *pi++ = 0;
 #endif
     }
@@ -267,25 +302,67 @@ int main(int argc, char **argv){
   //printf("power of original fftwCplxData is %f\n", pdata);
 
 #ifdef VERIFY_RESULT
-  fftw_execute(plan_realin);
+#if 0
+  printf("Input Real Data:\n");
+  for (i = 0; i < N0; ++i) {
+	  for (j = 0; j < N1; ++j) {
+		  printf( "%d ", (int)fftwRealData[i*N1 + j] );
+	  }
+	  printf("\n");
+  }
+#endif
+
+  fftw_execute(plan_r2c);
+
+#if 0
+  fftw_execute(plan_c2r);
+  printf("output Real Data:\n");
+  for (i = 0; i < N0; ++i) {
+	  for (j = 0; j < N1; ++j) {
+		  // see http://www.fftw.org/fftw3_doc/Multi_002dDimensional-DFTs-of-Real-Data.html 
+		  // for scaling info
+		  printf("%d ", (int)(fftwRealData[i*N1 + j]/N0/N1) );
+	  }
+	  printf("\n");
+  }
+#endif
+  //printf("r2c output:\n");
+  //int num_col = N1 / 2 + 1;
+  //for (i = 0; i < N0; ++i) {
+	 // for (j = 0; j < num_col; ++j) {
+		//  printf("(%.1lf %.1lf)", fftwCplxData[i*num_col + j][0], fftwCplxData[i*num_col + j][1]);
+	 // }
+	 // printf("\n");
+  //}
+
+  Expand2DR2CDftResults(fftwCplxData, fftwFullCplxData, N0, N1);
+  //printf("r2c output (EXPANDED):\n");
+  //for (i = 0; i < N0; ++i) {
+	 // for (j = 0; j < N1; ++j) {
+		//  printf("(%.1lf %.1lf)", fftwFullCplxData[i*N1 + j][0], fftwFullCplxData[i*N1 + j][1]);
+	 // }
+	 // printf("\n");
+  //}
+
   FFT2D_1DInput(data_real, data_imag, N0, N1, 1, real, imag);
 
-  Float_T d, max_diff = (Float_T)0.0;
+  Float_T d, max_diff = (Float_T)-10.0;
   int max_diff_i=-1, max_diff_j=-1;
   pr = data_real;
   pi = data_imag;
   for (i = 0; i < N0; ++i) {
 	  for (j = 0; j < N1; ++j) {
-		  printf("(%d,%d): (%lf, %lf) vs. (%lf, %lf) \n", i, j, (double)*pr, (double)*pi,
-				(double)fftwCplxData[i*N1 + j][0],
-				(double)fftwCplxData[i*N1 + j][1]
-		  );
-		  d = ABS(fftwCplxData[i*N1 + j][0] - *pr);
+		  //printf("(%d,%d): (%lf, %lf) vs. (%lf, %lf) \n", i, j, (double)*pr, (double)*pi,
+				//(double)fftwCplxData[i*N1 + j][0],
+				//(double)fftwCplxData[i*N1 + j][1]
+		  //);
+		  //printf("(%.1lf %.1lf) ", (double)*pr, (double)*pi);
+		  d = ABS(fftwFullCplxData[i*N1 + j][0] - *pr);
 		  if (max_diff < d) {
 			  max_diff = d;
 			  max_diff_i = i; max_diff_j = j;
 		  }
-		  d = ABS(fftwCplxData[i*N1 + j][1] - *pi);
+		  d = ABS(fftwFullCplxData[i*N1 + j][1] - *pi);
 		  if (max_diff < d) {
 			  max_diff = d;
 			  max_diff_i = i; max_diff_j = j;
@@ -293,6 +370,7 @@ int main(int argc, char **argv){
 		  pr++; pi++;
 		  //pdata+=data[i*N1 + j][0]*data[i*N1 + j][0]+data[i*N1 + j][1]*data[i*N1 + j][1];
 	  }
+	  //printf("\n");
   }
   printf("Max Diff %f at (%d, %d)\n", max_diff, max_diff_i, max_diff_j);
 #else
@@ -310,7 +388,7 @@ int main(int argc, char **argv){
   start_ns = get_time_ns();
   for(int i = 0; i < num_run; i++)
     /* compute transforms, in-place, as many times as desired */
-    fftw_execute(plan_realin);
+    fftw_execute(plan_r2c);
   printf("  Total 2D FFT Time %llu us\n", (unsigned long long)((get_time_ns() - start_ns)/1000));
   printf("  Avg 2D FFT Time %llu ns\n", (unsigned long long)((get_time_ns() - start_ns)/num_run));
 #endif
@@ -329,7 +407,8 @@ int main(int argc, char **argv){
 #ifndef VERIFY_RESULT
   fftw_destroy_plan(plan);
 #endif
-  fftw_destroy_plan(plan_realin);
+  fftw_destroy_plan(plan_r2c);
+  fftw_destroy_plan(plan_c2r);
 
   return 0;
 }
