@@ -228,6 +228,10 @@ ARGUMENTS:
 
 void Expand2DR2CDftResults(fftw_complex * pIn, fftw_complex * pOut, int num_row, int num_col)
 /*
+  Denote 2D DFT of real input as F, then
+    F[i,j] = conj(F[N0 - i][N1 - j])
+  where N0 and N1 are num_row and num_col, respectively.
+
 ARGUMENTS:
   - pIn: compressed as output of fftw_plan_dft_r2c_2d
 */
@@ -256,10 +260,15 @@ ARGUMENTS:
 	}
 }
 
-int main(int argc, char **argv){
+int main(int argc, char **argv)
+{
+  //NOTE: even though r2c's output has only N0*(N1/2+1) elements, we still need to allocate
+  //      N0 * N1 elements to the buffer
+  fftw_complex *fftwCplxData = (fftw_complex *)fftw_malloc(sizeof(fftw_complex) * N0 * N1);
+
   //const ptrdiff_t N0 = 16, N1 = 16;  
   fftw_plan plan, plan_r2c, plan_c2r;
-  fftw_complex *fftwCplxData=(fftw_complex *) fftw_malloc(sizeof(fftw_complex) * N0 * N1);
+
   double       *fftwRealData = (double*)fftw_malloc(sizeof(double) * N0 * N1);
   fftw_complex *fftwFullCplxData = (fftw_complex *)fftw_malloc(sizeof(fftw_complex) * N0 * N1);
 #ifdef VERIFY_RESULT
@@ -314,7 +323,7 @@ int main(int argc, char **argv){
 
   fftw_execute(plan_r2c);
 
-#if 0
+#ifdef VERIFY_IFFT
   fftw_execute(plan_c2r);
   printf("output Real Data:\n");
   for (i = 0; i < N0; ++i) {
